@@ -7,6 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
+
   backend-test:
     runs-on: ubuntu-latest
 
@@ -41,6 +42,7 @@ jobs:
           DB_PASSWORD: root
         run: ./mvnw test
 
+
   frontend-build:
     runs-on: ubuntu-latest
 
@@ -62,16 +64,47 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-  security-scan:
+
+
+  docker-build:
     runs-on: ubuntu-latest
+    needs: [backend-test, frontend-build]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trivy secret scan
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build backend JAR
+        working-directory: backend
+        env:
+          DB_PASSWORD: root
+        run: ./mvnw clean package -DskipTests
+
+      - name: Build backend Docker image
+        run: docker build -t employee-backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t employee-frontend:ci ./frontend
+
+      - name: Scan backend Docker image
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: "fs"
-          scan-ref: "."
-          scanners: "secret"
+          image-ref: "employee-backend:ci"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Scan frontend Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "employee-frontend:ci"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "0"
