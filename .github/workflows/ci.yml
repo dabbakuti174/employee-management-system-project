@@ -69,10 +69,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trivy vulnerability scan
+      - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
           scan-ref: "."
+          scanners: "vuln,secret"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
+          skip-dirs: "backend/target,frontend/node_modules"
+ 
